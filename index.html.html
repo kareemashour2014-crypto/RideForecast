@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RideForecast</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#080808;
+    --card:#111111;
+    --surface2:#181818;
+    --yellow:#FFD400;
+    --yellow-hover:#FFE34D;
+    --text:#FFFFFF;
+    --text-secondary:#A7A7A7;
+    --border:#262626;
+    --error:#FF4D4D;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    font-family:'IBM Plex Sans', sans-serif;
+    color:var(--text);
+    display:flex;
+    justify-content:center;
+    padding:24px 12px 48px;
+  }
+  .app{
+    width:100%;
+    max-width:460px;
+    background:var(--card);
+    border-radius:6px;
+    overflow:hidden;
+    box-shadow:0 30px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,212,0,0.06);
+  }
+
+  .tatreez{
+    height:4px;
+    width:100%;
+    background:repeating-linear-gradient(
+      110deg,
+      var(--yellow) 0 10px,
+      transparent 10px 22px
+    );
+    opacity:0.55;
+  }
+
+  header{
+    background:var(--bg);
+    color:var(--text);
+    padding:24px 22px 20px;
+    border-bottom:1px solid var(--border);
+  }
+  header .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.16em;
+    text-transform:uppercase;
+    color:var(--yellow);
+    margin:0 0 8px;
+  }
+  header h1{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:30px;
+    margin:0;
+    letter-spacing:-0.01em;
+    color:var(--text);
+  }
+  header .accent-bar{
+    width:42px;
+    height:3px;
+    background:var(--yellow);
+    margin:10px 0 12px;
+    border-radius:2px;
+  }
+  header p{
+    margin:0;
+    font-size:13.5px;
+    color:var(--text-secondary);
+    line-height:1.5;
+  }
+
+  .panel{ padding:20px 22px; }
+
+  .field{ margin-bottom:14px; position:relative; }
+  .field .field-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:6px;
+  }
+  .field label{
+    display:block;
+    font-size:11.5px;
+    font-weight:600;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--text-secondary);
+  }
+  .locate-btn{
+    border:none;
+    background:none;
+    color:var(--yellow);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:11.5px;
+    font-weight:600;
+    letter-spacing:0.01em;
+    cursor:pointer;
+    padding:2px 0;
+    display:flex;
+    align-items:center;
+    gap:4px;
+    transition:color .15s ease, opacity .15s ease;
+  }
+  .locate-btn:hover{ color:var(--yellow-hover); }
+  .locate-btn:disabled{ color:var(--text-secondary); opacity:0.6; cursor:wait; }
+
+  .field input{
+    width:100%;
+    padding:12px 13px;
+    border:1.5px solid var(--border);
+    border-radius:6px;
+    background:var(--surface2);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:15px;
+    color:var(--text);
+    outline:none;
+    transition:border-color .18s ease, box-shadow .18s ease;
+  }
+  .field input::placeholder{ color:var(--text-secondary); }
+  .field input:focus{
+    border-color:var(--yellow);
+    box-shadow:0 0 0 3px rgba(255,212,0,0.12);
+  }
+  .field input:hover{ border-color:#3a3a3a; }
+
+  .suggestions{
+    display:none;
+    position:absolute;
+    top:calc(100% + 4px);
+    left:0; right:0;
+    background:var(--surface2);
+    border:1.5px solid var(--border);
+    border-radius:6px;
+    box-shadow:0 14px 30px rgba(0,0,0,0.55);
+    z-index:50;
+    max-height:280px;
+    overflow-y:auto;
+  }
+  .suggestions.show{ display:block; }
+  .sugg-item{
+    padding:10px 13px;
+    cursor:pointer;
+    font-size:13.5px;
+    border-bottom:1px solid var(--border);
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+    transition:background .12s ease;
+  }
+  .sugg-item:last-child{ border-bottom:none; }
+  .sugg-item:hover, .sugg-item.active{ background:rgba(255,212,0,0.08); }
+  .sugg-tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:9px;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color:var(--yellow);
+    background:var(--bg);
+    padding:2px 6px;
+    border-radius:3px;
+    flex-shrink:0;
+    border:1px solid var(--border);
+  }
+  .sugg-item .sugg-name{ color:var(--text); }
+  .sugg-item .sugg-sub{ color:var(--text-secondary); font-size:11.5px; }
+
+  .btn-row{ display:flex; flex-direction:column; gap:9px; }
+
+  .predict-btn{
+    width:100%;
+    padding:13px;
+    border:none;
+    border-radius:6px;
+    background:var(--yellow);
+    color:#080808;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-weight:600;
+    font-size:14.5px;
+    letter-spacing:0.02em;
+    cursor:pointer;
+    transition:background .15s ease, box-shadow .15s ease, transform .05s ease;
+  }
+  .predict-btn:hover{
+    background:var(--yellow-hover);
+    box-shadow:0 0 22px rgba(255,212,0,0.35);
+  }
+  .predict-btn:active{ transform:scale(0.99); }
+  .predict-btn:disabled{ background:#4a4110; color:var(--text-secondary); cursor:wait; box-shadow:none; }
+
+  .gmaps-btn{
+    width:100%;
+    padding:12px;
+    border:1.5px solid var(--yellow);
+    border-radius:6px;
+    background:var(--bg);
+    color:var(--yellow);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-weight:600;
+    font-size:13.5px;
+    letter-spacing:0.01em;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    transition:background .15s ease, box-shadow .15s ease, transform .05s ease;
+  }
+  .gmaps-btn:hover{
+    background:rgba(255,212,0,0.08);
+    box-shadow:0 0 16px rgba(255,212,0,0.18);
+  }
+  .gmaps-btn:active{ transform:scale(0.99); }
+  .gmaps-btn:disabled{ opacity:0.45; cursor:wait; box-shadow:none; }
+  .gmaps-btn svg{ flex-shrink:0; }
+
+  .status{
+    font-size:12.5px;
+    color:var(--error);
+    margin-top:10px;
+    min-height:16px;
+    line-height:1.45;
+  }
+  .status.note{ color:var(--yellow); }
+
+  .results{
+    display:none;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:10px;
+    margin-top:14px;
+  }
+  .results.show{ display:grid; }
+  .stat{
+    background:var(--surface2);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:12px 8px;
+    text-align:center;
+    transition:border-color .15s ease, transform .15s ease;
+  }
+  .stat:hover{ border-color:rgba(255,212,0,0.4); transform:translateY(-1px); }
+  .stat .num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:18px;
+    font-weight:600;
+    color:var(--yellow);
+  }
+  .stat .lbl{
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:0.07em;
+    color:var(--text-secondary);
+    margin-top:4px;
+  }
+
+  #mapWrap{
+    position:relative;
+    border-top:1px solid var(--border);
+    border-bottom:1px solid var(--border);
+  }
+  #map{
+    width:100%;
+    height:340px;
+  }
+  .map-notice{
+    display:none;
+    position:absolute;
+    inset:0;
+    background:rgba(8,8,8,0.96);
+    padding:24px;
+    text-align:center;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    gap:8px;
+  }
+  .map-notice.show{ display:flex; }
+  .map-notice .notice-title{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:16px;
+    color:var(--error);
+  }
+  .map-notice .notice-body{
+    font-size:12.5px;
+    color:var(--text-secondary);
+    line-height:1.5;
+    max-width:320px;
+  }
+
+  footer{
+    padding:14px 22px 20px;
+    font-size:11px;
+    color:var(--text-secondary);
+    line-height:1.6;
+    background:var(--card);
+  }
+  footer strong{
+    color:var(--yellow);
+    font-weight:600;
+  }
+
+  .leaflet-popup-content-wrapper{
+    border-radius:6px;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:13px;
+    background:var(--surface2);
+    color:var(--text);
+  }
+  .leaflet-popup-tip{ background:var(--surface2); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="tatreez"></div>
+  <header>
+    <p class="eyebrow">West Bank &middot; Palestine</p>
+    <h1>RideForecast</h1>
+    <div class="accent-bar"></div>
+    <p>Type a street, square, or landmark — it predicts the place, previews the route, and estimates the ride.</p>
+  </header>
+
+  <div class="panel">
+    <div class="field">
+      <div class="field-head">
+        <label for="pickup">Pickup address</label>
+        <button type="button" class="locate-btn" id="locateBtn">📍 Use current location</button>
+      </div>
+      <input id="pickup" type="text" placeholder="e.g. Al-Manara Square, Ramallah" autocomplete="off">
+      <div class="suggestions" id="sugg-pickup"></div>
+    </div>
+    <div class="field">
+      <label for="dest">Destination</label>
+      <input id="dest" type="text" placeholder="e.g. Ibrahimi Mosque, Hebron" autocomplete="off">
+      <div class="suggestions" id="sugg-dest"></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="predict-btn" id="predictBtn">Get estimate</button>
+      <button class="gmaps-btn" id="gmapsBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2C7.6 2 4 5.6 4 10c0 5.4 7 11.5 7.3 11.7.2.2.5.3.7.3s.5-.1.7-.3C13 21.5 20 15.4 20 10c0-4.4-3.6-8-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z" fill="currentColor"/></svg>
+        Open route in Google Maps
+      </button>
+    </div>
+    <div class="status" id="status"></div>
+
+    <div class="results" id="results">
+      <div class="stat"><div class="num" id="statDist">–</div><div class="lbl">Distance</div></div>
+      <div class="stat"><div class="num" id="statTime">–</div><div class="lbl">Est. time</div></div>
+      <div class="stat"><div class="num" id="statCost">–</div><div class="lbl">Est. fare</div></div>
+    </div>
+  </div>
+
+  <div id="mapWrap">
+    <div id="map"></div>
+    <div id="mapNotice" class="map-notice"></div>
+  </div>
+
+  <footer>
+    The map preview follows real streets when a road route can be computed; <strong>"Open route in Google Maps"</strong> always gives you the official, turn-by-turn driving route. A time buffer is added on top of driving time for typical West Bank checkpoint and traffic delays — actual fares and wait times may vary. Fare shown in ILS (₪). Suggestions blend live map data with a curated list of local streets and historical sites, and typos are matched to the closest known place. Map data © OpenStreetMap contributors.
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+  // ---------- West Bank context ----------
+  const WEST_BANK_CENTER = [31.95, 35.23];
+  const WEST_BANK_VIEWBOX = "34.85,32.60,35.65,31.20"; // left,top,right,bottom
+
+  // Curated streets, squares, and historical/cultural landmarks (typo-fallback + suggestion boost)
+  const CURATED = [
+    { name:"Al-Manara Square, Ramallah", tag:"landmark", lat:31.9038, lon:35.2034 },
+    { name:"Rukab Street, Ramallah", tag:"street", lat:31.9020, lon:35.1998 },
+    { name:"Church of the Nativity, Bethlehem", tag:"historical", lat:31.7043, lon:35.2076 },
+    { name:"Manger Street, Bethlehem", tag:"street", lat:31.7050, lon:35.2015 },
+    { name:"Rachel's Tomb, Bethlehem", tag:"historical", lat:31.7189, lon:35.2027 },
+    { name:"Herodium, Bethlehem", tag:"historical", lat:31.6656, lon:35.2436 },
+    { name:"Mar Saba Monastery, Bethlehem", tag:"historical", lat:31.7128, lon:35.3597 },
+    { name:"Al-Ibrahimi Mosque (Cave of the Patriarchs), Hebron", tag:"historical", lat:31.5250, lon:35.1103 },
+    { name:"Bab al-Zawiya, Hebron", tag:"landmark", lat:31.5300, lon:35.0950 },
+    { name:"King Faisal Street, Hebron", tag:"street", lat:31.5330, lon:35.0980 },
+    { name:"Old City of Nablus", tag:"historical", lat:32.2211, lon:35.2544 },
+    { name:"Jacob's Well, Nablus", tag:"historical", lat:32.2050, lon:35.2825 },
+    { name:"Sebastia Archaeological Site, Nablus", tag:"historical", lat:32.2769, lon:35.1917 },
+    { name:"Faisal Street, Nablus", tag:"street", lat:32.2225, lon:35.2600 },
+    { name:"Tell es-Sultan (Ancient Jericho)", tag:"historical", lat:31.8706, lon:35.4442 },
+    { name:"Nabi Musa Shrine, Jericho", tag:"historical", lat:31.7660, lon:35.4160 },
+    { name:"Ein al-Sultan Street, Jericho", tag:"street", lat:31.8720, lon:35.4470 },
+    { name:"Wadi Qelt", tag:"historical", lat:31.8386, lon:35.3937 },
+    { name:"Old City of Jenin", tag:"historical", lat:32.4611, lon:35.2989 },
+    { name:"Freedom Theatre, Jenin", tag:"landmark", lat:32.4600, lon:35.2960 },
+    { name:"Taybeh Village, Ramallah", tag:"landmark", lat:31.9430, lon:35.2990 },
+    { name:"Tulkarm City Center", tag:"landmark", lat:32.3100, lon:35.0286 },
+    { name:"Qalqilya City Center", tag:"landmark", lat:32.1892, lon:34.9700 }
+  ];
+
+  // ---------- fuzzy matching (typo tolerance) ----------
+  function normalize(s){
+    return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,'').trim();
+  }
+  function levenshtein(a, b){
+    const m = a.length, n = b.length;
+    const dp = Array.from({length:m+1}, () => new Array(n+1).fill(0));
+    for(let i=0;i<=m;i++) dp[i][0]=i;
+    for(let j=0;j<=n;j++) dp[0][j]=j;
+    for(let i=1;i<=m;i++){
+      for(let j=1;j<=n;j++){
+        dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+      }
+    }
+    return dp[m][n];
+  }
+  function fuzzyScore(query, target){
+    const q = normalize(query), t = normalize(target);
+    if(!q) return 0;
+    if(t.includes(q)) return 1;
+    const words = t.split(/\s+/);
+    let best = Infinity;
+    for(let i=0;i<words.length;i++){
+      const dist = levenshtein(q, words[i]);
+      if(dist < best) best = dist;
+    }
+    const distFull = levenshtein(q, t);
+    best = Math.min(best, distFull);
+    const maxLen = Math.max(q.length, 4);
+    return Math.max(0, 1 - best / maxLen);
+  }
+  function curatedMatches(query, limit=5){
+    return CURATED
+      .map(c => ({ ...c, score: fuzzyScore(query, c.name) }))
+      .filter(c => c.score > 0.35)
+      .sort((a,b) => b.score - a.score)
+      .slice(0, limit);
+  }
+  function bestCuratedMatch(query){
+    const matches = curatedMatches(query, 1);
+    return matches.length ? matches[0] : null;
+  }
+
+  // ---------- live geocoding (streets, places, addresses) ----------
+  async function nominatimSearch(query, limit=5){
+    const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&accept-language=en&layer=address,poi&limit=${limit}&viewbox=${WEST_BANK_VIEWBOX}&q=${encodeURIComponent(query)}`;
+    const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+    if(!res.ok) return [];
+    return res.json();
+  }
+
+  async function reverseGeocode(lat, lon){
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&accept-language=en&zoom=18&lat=${lat}&lon=${lon}`;
+    const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+    if(!res.ok) return null;
+    const data = await res.json();
+    if(!data || data.error) return null;
+    const label = data.display_name.split(',').slice(0,3).join(',');
+    return { lat, lon, label };
+  }
+
+  async function fetchRoadRoute(p, d){
+    const url = `https://router.project-osrm.org/route/v1/driving/${p.lon},${p.lat};${d.lon},${d.lat}?overview=full&geometries=geojson`;
+    const res = await fetch(url);
+    if(!res.ok) return null;
+    const data = await res.json();
+    if(!data.routes || !data.routes.length) return null;
+    const route = data.routes[0];
+    return {
+      latlngs: route.geometry.coordinates.map(c => [c[1], c[0]]),
+      distanceKm: route.distance / 1000,
+      durationMin: route.duration / 60
+    };
+  }
+
+  function haversineKm(a, b){
+    const R = 6371;
+    const dLat = (b.lat - a.lat) * Math.PI/180;
+    const dLon = (b.lon - a.lon) * Math.PI/180;
+    const la1 = a.lat * Math.PI/180, la2 = b.lat * Math.PI/180;
+    const h = Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+
+  // ---------- suggestion dropdowns ----------
+  let networkBlockedNotified = false;
+  function notifyNetworkBlocked(){
+    if(networkBlockedNotified) return;
+    networkBlockedNotified = true;
+    statusEl.textContent = "Live address search isn't reachable here, so only local landmarks/streets are shown — check your internet connection or try opening this file in a regular browser tab.";
+    statusEl.classList.add('note');
+  }
+
+  function setupField(inputId, suggId){
+    const input = document.getElementById(inputId);
+    const sugg = document.getElementById(suggId);
+    let debounceTimer = null;
+    let currentItems = [];
+
+    input.addEventListener('input', () => {
+      input.dataset.lat = ''; input.dataset.lon = ''; input.dataset.resolved = '';
+      const q = input.value.trim();
+      clearTimeout(debounceTimer);
+      if(q.length < 2){ sugg.classList.remove('show'); sugg.innerHTML=''; return; }
+      debounceTimer = setTimeout(async () => {
+        const curated = curatedMatches(q, 4);
+        let remote = [];
+        try {
+          const raw = await nominatimSearch(q, 8);
+          remote = raw.map(r => ({
+            name: r.display_name.split(',').slice(0,3).join(','),
+            sub: r.display_name,
+            tag: (r.type === 'residential' || r.class === 'highway') ? 'street' : 'place',
+            lat: parseFloat(r.lat), lon: parseFloat(r.lon)
+          }));
+        } catch(e) {
+          notifyNetworkBlocked();
+        }
+
+        const seen = new Set();
+        currentItems = [...curated, ...remote].filter(item => {
+          const key = normalize(item.name);
+          if(seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }).slice(0, 9);
+
+        renderSuggestions(sugg, currentItems, input);
+      }, 320);
+    });
+
+    input.addEventListener('blur', () => {
+      setTimeout(() => sugg.classList.remove('show'), 150);
+    });
+    input.addEventListener('focus', () => {
+      if(currentItems.length) sugg.classList.add('show');
+    });
+  }
+
+  function renderSuggestions(container, items, input){
+    if(!items.length){ container.classList.remove('show'); container.innerHTML=''; return; }
+    container.innerHTML = items.map((it, i) => `
+      <div class="sugg-item" data-idx="${i}">
+        <span class="sugg-tag">${it.tag}</span>
+        <span>
+          <div class="sugg-name">${it.name}</div>
+          ${it.sub && it.sub !== it.name ? `<div class="sugg-sub">${it.sub}</div>` : ''}
+        </span>
+      </div>
+    `).join('');
+    container.classList.add('show');
+    container.querySelectorAll('.sugg-item').forEach(el => {
+      el.addEventListener('mousedown', (e) => {
+        const idx = parseInt(el.dataset.idx, 10);
+        const item = items[idx];
+        input.value = item.name;
+        input.dataset.lat = item.lat;
+        input.dataset.lon = item.lon;
+        input.dataset.resolved = '1';
+        container.classList.remove('show');
+      });
+    });
+  }
+
+  setupField('pickup', 'sugg-pickup');
+  setupField('dest', 'sugg-dest');
+
+  const locateBtn = document.getElementById('locateBtn');
+
+  function requestLocation(auto){
+    if(!navigator.geolocation){
+      if(!auto) statusEl.textContent = 'Your browser doesn\'t support location access.';
+      return;
+    }
+    locateBtn.disabled = true;
+    locateBtn.textContent = 'Locating…';
+    if(!auto){ statusEl.textContent = ''; statusEl.classList.remove('note'); }
+
+    const geoOptions = { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 };
+    const GOOD_ENOUGH_ACCURACY_M = 20; // stop refining once we're this precise
+    const REFINE_WINDOW_MS = 8000;     // brief window to let the GPS fix improve
+
+    let best = null;       // { latitude, longitude, accuracy }
+    let watchId = null;
+    let settled = false;
+
+    async function finalizeLocation(reading){
+      const { latitude, longitude, accuracy } = reading;
+      try {
+        const place = await reverseGeocode(latitude, longitude);
+        const pickupInput = document.getElementById('pickup');
+        pickupInput.value = place ? place.label : `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+        pickupInput.dataset.lat = latitude;
+        pickupInput.dataset.lon = longitude;
+        pickupInput.dataset.resolved = '1';
+        document.getElementById('sugg-pickup').classList.remove('show');
+        map.setView([latitude, longitude], 15);
+        const accText = (typeof accuracy === 'number' && isFinite(accuracy)) ? `±${Math.round(accuracy)} m` : 'accuracy unknown';
+        statusEl.textContent = `Location found (${accText})`;
+        statusEl.classList.add('note');
+      } catch(e) {
+        statusEl.textContent = "Found your coordinates, but couldn't look up the street name.";
+      } finally {
+        locateBtn.disabled = false;
+        locateBtn.textContent = '📍 Use current location';
+      }
+    }
+
+    function stopWatch(){
+      if(watchId !== null){ navigator.geolocation.clearWatch(watchId); watchId = null; }
+    }
+
+    function finish(){
+      if(settled) return;
+      settled = true;
+      stopWatch();
+      if(best){
+        finalizeLocation(best);
+      } else {
+        locateBtn.disabled = false;
+        locateBtn.textContent = '📍 Use current location';
+        if(!auto) statusEl.textContent = 'Could not get your location.';
+      }
+    }
+
+    function handleReading(pos){
+      if(settled) return;
+      const { latitude, longitude, accuracy } = pos.coords;
+      // Never invent or adjust coordinates — only keep the most accurate real reading seen.
+      if(!best || (typeof accuracy === 'number' && typeof best.accuracy === 'number' && accuracy < best.accuracy)){
+        best = { latitude, longitude, accuracy };
+      }
+      if(typeof accuracy === 'number' && accuracy <= GOOD_ENOUGH_ACCURACY_M){
+        finish();
+      }
+    }
+
+    function handleError(err){
+      if(settled) return;
+      if(best){
+        // We already captured at least one real reading before the error — use the best of those.
+        finish();
+        return;
+      }
+      settled = true;
+      stopWatch();
+      locateBtn.disabled = false;
+      locateBtn.textContent = '📍 Use current location';
+      if(!auto){
+        let msg = 'Could not get your location.';
+        if(err.code === err.PERMISSION_DENIED) msg = 'Location access was denied — enable it in your browser settings to use this.';
+        else if(err.code === err.POSITION_UNAVAILABLE) msg = 'Location is currently unavailable on this device.';
+        else if(err.code === err.TIMEOUT) msg = 'Location request timed out — try again.';
+        statusEl.textContent = msg;
+      }
+    }
+
+    // Watch briefly so the reading can refine toward the device's best accuracy,
+    // then settle on whatever the most precise real reading turned out to be.
+    watchId = navigator.geolocation.watchPosition(handleReading, handleError, geoOptions);
+    setTimeout(finish, REFINE_WINDOW_MS);
+  }
+
+  locateBtn.addEventListener('click', () => requestLocation(false));
+
+  // ---------- resolve a field to coordinates, with typo-tolerant fallback ----------
+  async function resolveLocation(input){
+    const query = input.value.trim();
+    if(!query) return { result:null, note:null };
+
+    if(input.dataset.resolved === '1' && input.dataset.lat && input.dataset.lon){
+      return { result: { lat: parseFloat(input.dataset.lat), lon: parseFloat(input.dataset.lon), label: query }, note:null };
+    }
+
+    try {
+      const raw = await nominatimSearch(query, 1);
+      if(raw.length){
+        return { result: { lat: parseFloat(raw[0].lat), lon: parseFloat(raw[0].lon), label: raw[0].display_name }, note:null };
+      }
+    } catch(e) { /* fall through */ }
+
+    const guess = bestCuratedMatch(query);
+    if(guess && guess.score > 0.5){
+      return { result: { lat: guess.lat, lon: guess.lon, label: guess.name }, note: `Showing closest match for "${query}": ${guess.name}` };
+    }
+
+    const trimmed = query.split(/\s+/).slice(0,2).join(' ');
+    if(trimmed && trimmed !== query){
+      try {
+        const raw = await nominatimSearch(trimmed, 1);
+        if(raw.length){
+          return { result: { lat: parseFloat(raw[0].lat), lon: parseFloat(raw[0].lon), label: raw[0].display_name }, note: `Couldn't match "${query}" exactly — using closest result: ${raw[0].display_name.split(',').slice(0,2).join(',')}` };
+        }
+      } catch(e) { /* give up */ }
+    }
+
+    return { result:null, note:null };
+  }
+
+  // Shared resolver used by both "Get estimate" and "Open route in Google Maps"
+  async function resolveBothInputs(){
+    const pickupInput = document.getElementById('pickup');
+    const destInput = document.getElementById('dest');
+    if(!pickupInput.value.trim() || !destInput.value.trim()){
+      return { error: 'Enter both a pickup address and a destination.' };
+    }
+    const [pRes, dRes] = await Promise.all([resolveLocation(pickupInput), resolveLocation(destInput)]);
+    if(!pRes.result) return { error: `Couldn't find "${pickupInput.value}" — try a nearby street or landmark.` };
+    if(!dRes.result) return { error: `Couldn't find "${destInput.value}" — try a nearby street or landmark.` };
+    return { pRes, dRes, pickupInput, destInput };
+  }
+
+  // ---------- map ----------
+  const map = L.map('map', { scrollWheelZoom: true }).setView(WEST_BANK_CENTER, 9);
+  const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    subdomains: 'abc',
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  const mapNotice = document.getElementById('mapNotice');
+  let tilesLoadedOK = false;
+  tileLayer.on('load', () => { tilesLoadedOK = true; mapNotice.classList.remove('show'); });
+  setTimeout(() => {
+    if(!tilesLoadedOK){
+      mapNotice.innerHTML = `
+        <div class="notice-title">Map couldn't load</div>
+        <div class="notice-body">This viewer may be blocking outside network access (map tiles, address search, and routing all need it). Try opening this file directly in a browser like Chrome instead of an in-app viewer.</div>
+      `;
+      mapNotice.classList.add('show');
+    }
+  }, 6000);
+
+  let pickupMarker = null, destMarker = null, routeLine = null;
+  const crimsonIcon = L.divIcon({ className:'', html:'<div style="width:14px;height:14px;border-radius:50%;background:#FFD400;border:2.5px solid #080808;box-shadow:0 0 6px rgba(255,212,0,0.7);"></div>', iconSize:[14,14], iconAnchor:[7,7] });
+  const oliveIcon = L.divIcon({ className:'', html:'<div style="width:14px;height:14px;border-radius:50%;background:#FFFFFF;border:2.5px solid #080808;box-shadow:0 1px 4px rgba(0,0,0,0.5);"></div>', iconSize:[14,14], iconAnchor:[7,7] });
+
+  const statusEl = document.getElementById('status');
+  const btn = document.getElementById('predictBtn');
+  const gmapsBtn = document.getElementById('gmapsBtn');
+  const resultsEl = document.getElementById('results');
+
+  // Ask for the person's location as soon as the app opens, so pickup can default to "here"
+  requestLocation(true);
+
+  // ---------- Get estimate: resolve, preview route on the Leaflet map, compute fare/time ----------
+  btn.addEventListener('click', async () => {
+    statusEl.textContent = '';
+    statusEl.classList.remove('note');
+    resultsEl.classList.remove('show');
+
+    btn.disabled = true;
+    btn.textContent = 'Locating…';
+
+    try {
+      const resolved = await resolveBothInputs();
+      if(resolved.error){ statusEl.textContent = resolved.error; return; }
+      const { pRes, dRes, pickupInput, destInput } = resolved;
+      const p = pRes.result, d = dRes.result;
+      const notes = [pRes.note, dRes.note].filter(Boolean);
+
+      if(pickupMarker) map.removeLayer(pickupMarker);
+      if(destMarker) map.removeLayer(destMarker);
+      if(routeLine) map.removeLayer(routeLine);
+      routeLine = null;
+
+      pickupMarker = L.marker([p.lat, p.lon], { icon: crimsonIcon }).addTo(map).bindPopup('Pickup: ' + pickupInput.value);
+      destMarker = L.marker([d.lat, d.lon], { icon: oliveIcon }).addTo(map).bindPopup('Destination: ' + destInput.value);
+
+      let distKm, timeMin, approx = false;
+      const road = await fetchRoadRoute(p, d);
+
+      if(road){
+        routeLine = L.polyline(road.latlngs, {
+          color: '#FFD400', weight: 4.5, opacity: 0.95, lineCap: 'round', lineJoin: 'round'
+        }).addTo(map);
+        distKm = road.distanceKm;
+        timeMin = Math.max(4, Math.round(road.durationMin * 1.25) + 3);
+        map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+      } else {
+        // No straight-line "route" is drawn — that would misrepresent the actual streets.
+        map.fitBounds(L.latLngBounds([[p.lat, p.lon], [d.lat, d.lon]]), { padding: [60, 60] });
+        distKm = haversineKm(p, d);
+        timeMin = Math.max(4, Math.round((distKm / 32) * 60) + 4);
+        approx = true;
+        notes.push('Couldn\'t compute a road-following route for this preview map — showing pickup and destination pins only. The numbers below are straight-line estimates. Use "Open route in Google Maps" for the real driving route.');
+      }
+
+      const baseFare = 10, perKm = 2.6;
+      const cost = Math.round(baseFare + distKm * perKm);
+
+      document.getElementById('statDist').textContent = (approx ? '~' : '') + distKm.toFixed(1) + ' km';
+      document.getElementById('statTime').textContent = (approx ? '~' : '') + timeMin + ' min';
+      document.getElementById('statCost').textContent = '₪' + cost;
+      resultsEl.classList.add('show');
+
+      if(notes.length){
+        statusEl.textContent = notes.join(' · ');
+        statusEl.classList.add('note');
+      }
+
+    } catch(err) {
+      statusEl.textContent = 'Something went wrong looking up those places. Try again.';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Get estimate';
+    }
+  });
+
+  // ---------- Open route in Google Maps: real turn-by-turn driving directions ----------
+  gmapsBtn.addEventListener('click', async () => {
+    statusEl.textContent = '';
+    statusEl.classList.remove('note');
+    gmapsBtn.disabled = true;
+    const originalLabel = gmapsBtn.innerHTML;
+    gmapsBtn.textContent = 'Opening…';
+
+    try {
+      const resolved = await resolveBothInputs();
+      if(resolved.error){
+        statusEl.textContent = resolved.error;
+        return;
+      }
+      const { pRes, dRes } = resolved;
+      const p = pRes.result, d = dRes.result;
+
+      const origin = encodeURIComponent(`${p.lat},${p.lon}`);
+      const destination = encodeURIComponent(`${d.lat},${d.lon}`);
+      const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+
+      window.location.href = googleMapsUrl;
+    } catch(err) {
+      statusEl.textContent = 'Google Maps could not be opened — something went wrong resolving those locations.';
+    } finally {
+      gmapsBtn.disabled = false;
+      gmapsBtn.innerHTML = originalLabel;
+    }
+  });
+</script>
+
+</body>
+</html>
